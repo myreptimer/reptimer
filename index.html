@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1424">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RepTimer">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <title>RepTimer</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; color:#fff; background:linear-gradient(145deg,#0e1424,#19243b); }
+    main { width:min(100% - 32px,520px); margin:0 auto; padding:26px 0 max(24px,env(safe-area-inset-bottom)); }
+    header { text-align:center; padding:12px 0 22px; }
+    .brand { color:#61d9ff; font-weight:800; letter-spacing:3px; font-size:13px; }
+    .sub { color:#9aa8bd; margin-top:6px; font-size:14px; }
+    .panel { background:#ffffff0e; border:1px solid #ffffff18; border-radius:24px; padding:22px; margin:0 0 18px; box-shadow:0 12px 35px #0002; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; color:#b8c4d7; font-weight:800; font-size:12px; letter-spacing:1.3px; }
+    .reset { border:0; color:#d5deed; background:#ffffff16; border-radius:50%; width:38px; height:38px; font-size:18px; }
+    .number { text-align:center; font-size:clamp(64px,18vw,86px); font-weight:750; font-variant-numeric:tabular-nums; padding:12px 0 18px; }
+    .actions { display:flex; gap:12px; }
+    button { cursor:pointer; border:0; color:white; font-weight:800; border-radius:16px; min-height:56px; font-size:15px; }
+    .minus { width:68px; background:#ffffff1b; font-size:25px; }
+    .add { flex:1; background:linear-gradient(100deg,#19b9e8,#236ee9); letter-spacing:1px; }
+    .timer { font-size:clamp(48px,13vw,64px); font-weight:300; text-align:center; font-variant-numeric:tabular-nums; padding:18px 0 22px; }
+    .status { display:flex; align-items:center; gap:8px; color:#9aa8bd; font-size:10px; letter-spacing:1px; font-weight:800; }
+    .dot { width:8px;height:8px;border-radius:50%;background:#8491a5; }
+    .dot.on { background:#42dc8c; }
+    .timer-actions { display:flex; gap:12px; }
+    .start { flex:1; background:#18a968; }
+    .start.pause { background:#e78b28; }
+    .stop { width:60px; background:#ffffff1b; }
+    footer { text-align:center; color:#78869d; font-size:12px; padding:4px 10px 18px; }
+    button:active { transform:scale(.98); }
+  </style>
+</head>
+<body>
+<main>
+  <header><div class="brand">REP TIMER</div><div class="sub">Seu treino, no controle.</div></header>
+  <section class="panel">
+    <div class="panel-head"><span>↻ &nbsp; REPETIÇÕES</span><button class="reset" id="resetReps" aria-label="Zerar repetições">↺</button></div>
+    <div class="number" id="count">0</div>
+    <div class="actions">
+      <button class="minus" id="minus" aria-label="Diminuir">−</button>
+      <button class="add" id="plus">＋ &nbsp; ADICIONAR</button>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head">
+      <span>◷ &nbsp; CRONÔMETRO</span>
+      <span class="status"><i class="dot" id="dot"></i><span id="status">PAUSADO</span></span>
+    </div>
+    <div class="timer" id="time">00:00</div>
+    <div class="timer-actions">
+      <button class="start" id="toggle">▶ &nbsp; INICIAR</button>
+      <button class="stop" id="stop" aria-label="Zerar cronômetro">■</button>
+    </div>
+  </section>
+  <footer>Mantenha o foco. Uma repetição de cada vez.</footer>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let reps = Number(localStorage.getItem('reptimer-reps') || 0);
+  let elapsed = 0, startedAt = 0, running = false, interval = null;
+  const renderReps = () => { $('count').textContent = reps; localStorage.setItem('reptimer-reps', reps); };
+  const format = s => {
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return h ? [h,m,sec].map(v=>String(v).padStart(2,'0')).join(':') : [m,sec].map(v=>String(v).padStart(2,'0')).join(':');
+  };
+  const renderTime = () => $('time').textContent = format(elapsed);
+  const tick = () => { elapsed = Math.floor((Date.now()-startedAt)/1000); renderTime(); };
+  const setRunning = value => {
+    running = value;
+    $('toggle').textContent = running ? 'Ⅱ  PAUSAR' : (elapsed ? '▶  CONTINUAR' : '▶  INICIAR');
+    $('toggle').classList.toggle('pause', running);
+    $('status').textContent = running ? 'EM ANDAMENTO' : 'PAUSADO';
+    $('dot').classList.toggle('on', running);
+    if (interval) clearInterval(interval);
+    interval = null;
+    if (running) { startedAt = Date.now() - elapsed*1000; interval = setInterval(tick, 200); }
+  };
+  $('plus').addEventListener('click',()=>{ reps++; renderReps(); });
+  $('minus').addEventListener('click',()=>{ reps=Math.max(0,reps-1); renderReps(); });
+  $('resetReps').addEventListener('click',()=>{ reps=0; renderReps(); });
+  $('toggle').addEventListener('click',()=>{ if(running){ tick(); setRunning(false); } else setRunning(true); });
+  $('stop').addEventListener('click',()=>{ elapsed=0; renderTime(); setRunning(false); });
+  renderReps(); renderTime();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>
